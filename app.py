@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, Response, flash, redirect, url_for, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_cors import CORS
 from auth import AuthError, get_token_auth_header, verify_decode_jwt, check_permissions, requires_auth 
 
@@ -18,6 +19,8 @@ def create_app(test_config=None):
   #app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
   db = SQLAlchemy(app)
+
+  migrate = Migrate(app, db)
 
   CORS(app)
 
