@@ -1,12 +1,13 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import json
+import os
 
   ############################################################
   ################# Create models ############################
   ############################################################
 
-database_path = 'postgresql://postgres:root@localhost:5432/capstone_2'
+database_path = os.environ['DATABASE_URL']
 
 db = SQLAlchemy()
 
