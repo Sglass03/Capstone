@@ -5,7 +5,7 @@ import json
   ################# Create models ############################
   ############################################################
 
-database_path = 'postgresql://postgres:root@localhost:5432/capstone'
+database_path = 'postgres://axkaekoqbfsmbg:7b328ee6d10a372b310f28fe9cff5a5c66a6a90b5dd99e6cfb4a85a9b7a0a402@ec2-54-236-137-173.compute-1.amazonaws.com:5432/delkbr8dkblsk1'
 
 db = SQLAlchemy()
 
