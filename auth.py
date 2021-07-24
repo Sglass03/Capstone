@@ -5,9 +5,9 @@ from jose import jwt
 from urllib.request import urlopen
 
 
-AUTH0_DOMAIN =  os.environ.get('AUTH0_DOMAIN')
+AUTH0_DOMAIN =  'fscourse.us.auth0.com'
 ALGORITHMS = ['RS256']
-API_AUDIENCE = os.environ.get('API_AUDIENCE')
+API_AUDIENCE = 'capstone'
 
 
 class AuthError(Exception):
