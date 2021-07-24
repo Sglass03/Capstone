@@ -4,16 +4,14 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 from auth import AuthError, get_token_auth_header, verify_decode_jwt, check_permissions, requires_auth 
 
-from models import setup_db, db, Actor, Movie
-
-database_path = 'postgresql://axkaekoqbfsmbg:7b328ee6d10a372b310f28fe9cff5a5c66a6a90b5dd99e6cfb4a85a9b7a0a402@ec2-54-236-137-173.compute-1.amazonaws.com:5432/delkbr8dkblsk1'
+from models import setup_db, db, Actor, Movie, database_path
 
 # Run Flask app
 def create_app(test_config=None):
 
   app = Flask(__name__)
 
-  setup_db(app)
+  setup_db(app, database_path)
   
   #app.config['SQLALCHEMY_DATABASE_URI'] = database_path
   #app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -216,6 +214,7 @@ def create_app(test_config=None):
 
   return app
 
+app = create_app()
 
 #Tests
 #Success for each endpoint
