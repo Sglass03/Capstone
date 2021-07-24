@@ -7,7 +7,8 @@ import os
   ################# Create models ############################
   ############################################################
 
-database_path = os.environ['DATABASE_URL']
+#database_path = os.environ['DATABASE_URL']
+database_path = os.environ.get('DATABASE_URL').replace("://", "ql://", 1)
 
 db = SQLAlchemy()
 
