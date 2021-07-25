@@ -1,8 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-database_path = "postgresql://postgres:root@localhost:5432/capstone_test"
-# database_path = os.environ.get('DATABASE_URL').replace("://", "ql://", 1)
+# database_path = "postgresql://postgres:root@localhost:5432/capstone_test"
+database_path = os.environ.get('DATABASE_URL').replace("://", "ql://", 1)
 
 db = SQLAlchemy()
 
