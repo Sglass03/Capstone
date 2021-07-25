@@ -181,7 +181,7 @@ def create_app(test_config=None):
     @requires_auth('delete:actor')
     def delete_actor(jwt, actor_id):
         try:
-            actor = Actor.query.filter_by(id=actor_id)
+            actor = Actor.query.filter_by(id=actor_id).one_or_none()
 
             if actor is None:
                 abort(402)
@@ -203,7 +203,7 @@ def create_app(test_config=None):
     def delete_movie(jwt, movie_id):
 
         try:
-            movie = Movie.query.filter_by(id=movie_id)
+            movie = Movie.query.filter_by(id=movie_id).one_or_none()
 
             if movie is None:
                 abort(402)
