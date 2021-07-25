@@ -1,222 +1,284 @@
-from flask import Flask, render_template, request, Response, flash, redirect, url_for, jsonify, abort
+from flask import (
+  Flask,
+  render_template,
+  request,
+  Response,
+  flash,
+  redirect,
+  url_for,
+  jsonify,
+  abort)
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
-from auth import AuthError, get_token_auth_header, verify_decode_jwt, check_permissions, requires_auth 
+from auth import (
+  AuthError,
+  get_token_auth_header,
+  verify_decode_jwt,
+  check_permissions,
+  requires_auth)
 
 from models import setup_db, db, Actor, Movie, database_path
 
+
 # Run Flask app
 def create_app(test_config=None):
+    app = Flask(__name__)
 
-  app = Flask(__name__)
+    setup_db(app, database_path)
 
-  setup_db(app, database_path)
-  
-  #app.config['SQLALCHEMY_DATABASE_URI'] = database_path
-  #app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    # app.config['SQLALCHEMY_DATABASE_URI'] = database_path
+    # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-  db = SQLAlchemy(app)
+    db = SQLAlchemy(app)
 
-  migrate = Migrate(app, db)
+    migrate = Migrate(app, db)
 
-  CORS(app)
+    CORS(app)
 
+    # CREATE ROUTES
 
-  ############################################################################
-  ######################CREATE ROUTES ########################################
-  ############################################################################
+    # GET REQUESTS
 
-  #### GET REQUESTS ####
+    @app.route('/actors')
+    @requires_auth('get:actors')
+    def get_actors(jwt):
+        try:
+            actor_list = Actor.query.all()
+            actors = []
 
+            for actor in actor_list:
+                actors.append(actor.format())
+        except:
+            abort(500)
+        finally:
+            db.session.close()
 
-  @app.route('/actors')
-  @requires_auth('get:actors')
-  def get_actors(jwt):
-    
-    try:
-      actor_list = Actor.query.all()
-      actors = []
+        return jsonify(actors)
 
-      for actor in actor_list:
-        actors.append({'id': actor.id, 
-          'name': actor.name,
-          'age': actor.age, 
-          'gender': actor.gender  
-          })
-    except:
-      abort(500)
-    finally:
-      db.session.close()
+    @app.route('/movies')
+    @requires_auth('get:movies')
+    def get_movies(jwt):
+        try:
+            movie_list = Movie.query.all()
+            movies = []
 
-    return jsonify(actors)
+            # Use helper method to format movie records
+            for movie in movie_list:
+                movies.append(movie.format())
+        except:
+            abort(500)
+        finally:
+            db.session.close()
 
-  @app.route('/movies')
-  @requires_auth('get:movies')
-  def get_movies(jwt):
-    
-    try:
-      movie_list = Movie.query.all()
-      movies = []
+        return jsonify(movies)
 
-      for movie in movie_list:
-        movies.append({'id': movie.id, 'title': movie.title , 'release_date': movie.release_date})
-    except:
-      abort(500)
-    finally:
-      db.session.close()
+    # Add POST requests
 
-    return jsonify(movies)
+    @app.route('/movies', methods=["POST"])
+    @requires_auth('add:movie')
+    def add_movie(jwt):
+        try:
+            movie_data = request.get_json()
 
+            new_movie = Movie(
+                title=movie_data['title'],
+                release_date=movie_data['release_date']
+                )
 
-  #### Add POST requests
+            new_movie.insert()
 
-  @app.route('/add_movie', methods=["POST"])
-  @requires_auth('add:movie')
-  def add_movie(jwt):
-    try:
-      movie_data = request.get_json()
+        except:
+            db.session.rollback()
+            abort(500)
+        finally:
+            db.session.close()
 
-      new_movie = Movie(title=movie_data['title'], release_date=movie_data['release_date'])
+        return "Success", 201
 
-      db.session.add(new_movie)
-      db.session.commit()
-    except:
-      db.session.rollback()
-      abort(500)
-    finally:
-      db.session.close()
+    @app.route('/actors', methods=['POST'])
+    @requires_auth('add:actor')
+    def add_actor(jwt):
+        try:
+            actor_data = request.get_json()
 
-    return "Success", 201
+            new_actor = Actor(
+                name=actor_data['name'],
+                age=actor_data['age'],
+                gender=actor_data['gender'])
 
-  @app.route('/add_actor', methods=['POST'])
-  @requires_auth('add:actor')
-  def add_actor(jwt):
-    
-    try:
-      actor_data = request.get_json()
+            new_actor.insert()
 
-      new_actor = Actor(name=actor_data['name'], age=actor_data['age'], gender=actor_data['gender'])
+        except:
+            db.session.rollback()
+            abort(500)
+        finally:
+            db.session.close()
 
-      db.session.add(new_actor)
-      db.session.commit()
-    except:
-      db.session.rollback()
-      abort(500)
-    finally:
-      db.session.close()
+        return "Success", 201
 
-    return "Success", 201
+    # Add Patch requests
 
-  ### Add Patch requests #####
+    # Add actor update
+    # Casting diretor + Executive producer
 
-  #Add actor update
-  #Casting diretor + Executive producer
+    @app.route('/actors/<actor_id>', methods=['PATCH'])
+    @requires_auth('update:actor')
+    def update_actor(jwt, actor_id):
+        try:
+            actor = Actor.query.filter_by(id=actor_id).one_or_none()
 
-  @app.route('/update_actor/<actor_id>', methods=['PATCH'])
-  @requires_auth('update:actor')
-  def update_actor(jwt, actor_id):
+            if actor is None:
+                abort(404)
 
-    try:
-      actor = Actor.query.filter_by(id=actor_id).one_or_none()
-      actor_data = request.get_json()
+            actor_data = request.get_json()
 
-      if actor is None:
-        abort(402)
+            for field in ['name', 'age', 'gender']:
+                if field in actor_data:
+                    setattr(actor, field, actor_data[field])
 
-      for field in ['name', 'age', 'gender']:
-        if field in actor_data:
-          setattr(actor, field, actor_data[field])
+            actor.update()
 
-      db.session.commit()
-    except:
-      db.session.rollback()
-      abort(402)
-    finally:
-      db.session.close()
+        except:
+            db.session.rollback()
+            abort(500)
+        finally:
+            db.session.close()
 
-    return "Success", 201
-    
-  #PATCH Update movies 
-  #Casting diretor + Executive producer
-  @app.route('/update_movie/<movie_id>', methods=['PATCH'])
-  @requires_auth('update:movie')
-  def update_movie(jwt, movie_id):
+        return "Success", 201
 
-    try:
-      movie = Movie.query.filter_by(id=movie_id).one_or_none()
-      movie_data = request.get_json()
+    # PATCH Update movies
+    # Casting diretor + Executive producer
+    @app.route('/movies/<movie_id>', methods=['PATCH'])
+    @requires_auth('update:movie')
+    def update_movie(jwt, movie_id):
 
-      if movie is None:
-        abort(402)
+        try:
+            movie = Movie.query.filter_by(id=movie_id).one_or_none()
+            movie_data = request.get_json()
 
-      for field in ['title', 'release_date']:
-        if field in movie_data:
-          setattr(movie, field, movie_data[field])
+            if movie is None:
+                abort(404)
 
-      db.session.commit()
-    except:
-      db.session.rollback()
-      abort(402)
-    finally:
-      db.session.close()
+            for field in ['title', 'release_date']:
+                if field in movie_data:
+                    setattr(movie, field, movie_data[field])
 
-    return "Success", 201
+            movie.update()
 
+        except:
+            db.session.rollback()
+            abort(500)
+        finally:
+            db.session.close()
 
-  #Create DELETE request to delete an actor
-  #Executive Producer role
+        return "Success", 201
 
-  @app.route('/delete_actor/<actor_id>', methods=["DELETE"])
-  @requires_auth('delete:actor')
-  def delete_actor(jwt, actor_id):
-    try:
-      actor = Actor.query.filter_by(id=actor_id)
+    # Create DELETE request to delete an actor
+    # Executive Producer role
 
-      if actor is None:
-        abort(402)
+    @app.route('/actors/<actor_id>', methods=["DELETE"])
+    @requires_auth('delete:actor')
+    def delete_actor(jwt, actor_id):
+        try:
+            actor = Actor.query.filter_by(id=actor_id)
 
-      actor.delete()
+            if actor is None:
+                abort(402)
 
-      db.session.commit()
-    except:
-      abort(500)
-    finally:
-      db.session.close()
-    
-    return "Success", 200
+            actor.delete()
 
+        except:
+            abort(500)
+        finally:
+            db.session.close()
 
+        return "Success", 200
 
-  #Create DELETE request to delete an movie
-  #Executive Producer role
+    # Create DELETE request to delete an movie
+    # Executive Producer role
 
-  @app.route('/delete_movie/<movie_id>', methods=["DELETE"])
-  @requires_auth('delete:movie')
-  def delete_movie(jwt, movie_id):
+    @app.route('/movies/<movie_id>', methods=["DELETE"])
+    @requires_auth('delete:movie')
+    def delete_movie(jwt, movie_id):
 
-    try:
-      movie = Movie.query.filter_by(id=movie_id)
-      print(movie)  
+        try:
+            movie = Movie.query.filter_by(id=movie_id)
 
-      if movie is None:
-        abort(402)
+            if movie is None:
+                abort(402)
 
-      movie.delete()
+            movie.delete()
 
-      db.session.commit()
-    except:
-      abort(500)
-    finally:
-      db.session.close()
+        except:
+            abort(500)
+        finally:
+            db.session.close()
 
-    return "Success", 200
+        return "Success", 200
 
-  return app
+    return app
 
 app = create_app()
 
-#Tests
-#Success for each endpoint
-#Error for each endpoint
-#Two RBAC tests
+# Add error handlers
+
+
+# 400
+@app.errorhandler(400)
+def unauthorized(error):
+    return jsonify({
+        "success": False,
+        "error": 400,
+        "message": "Unauthorized - Add Proper Credentials"
+    }), 400
+
+
+# 401
+@app.errorhandler(401)
+def bad_request(error):
+    return jsonify({
+        "success": False,
+        "error": 401,
+        "message": "Bad request"
+    }), 401
+
+
+# 404
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        "success": False,
+        "error": 404,
+        "message": "Resource not found"
+    }), 404
+
+
+# 403
+@app.errorhandler(403)
+def forbidden(error):
+    return jsonify({
+        "success": False,
+        "error": 403,
+        "message": "Forbidden"
+    }), 403
+
+
+# 500
+@app.errorhandler(500)
+def server_error(error):
+    return jsonify({
+        "success": False,
+        "error": 500,
+        "message": "Internal Server Error"
+    }), 500
+
+
+# 405
+@app.errorhandler(405)
+def bad_method(error):
+    return jsonify({
+        "success": False,
+        "error": 405,
+        "message": "Method Not Allowed"
+    }), 405
